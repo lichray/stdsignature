@@ -86,6 +86,11 @@ struct signature<R(Args...)>
 		f_(reinterpret_cast<intptr_t>(std::addressof(f)))
 	{}
 
+	template <typename F>
+	signature(std::reference_wrapper<F> f) noexcept :
+		signature(f.get())
+	{}
+
 	// not propagating const by design
 	R operator()(Args... args)
 	{

@@ -77,6 +77,9 @@ int main()
 	static_assert(is_nothrow_constructible_v<signature<int()>, F2>, "");
 	static_assert(is_trivially_copyable_v<signature<int()>>, "");
 
+	static_assert(is_nothrow_constructible_v<signature<int()>,
+	    std::reference_wrapper<F2>>, "");
+
 	// overloading and void-discarding
 	do_f1([](char const*) { return 3; });
 
@@ -94,4 +97,8 @@ int main()
 
 	assert(do_f3(&F3::c, f3) == 'a');
 	assert(do_f3(&F3::next, f3).c == 'b');
+
+	// ref-unwrapping
+	signature<int()> xf = std::ref(f2);
+	assert(xf() == no_qs);
 }
