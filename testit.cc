@@ -69,8 +69,14 @@ auto do_f3(signature<char(F3)> f, F3 obj)
 
 #include <cassert>
 
+using namespace std::experimental;
+
 int main()
 {
+	// basics
+	static_assert(is_nothrow_constructible_v<signature<int()>, F2>, "");
+	static_assert(is_trivially_copyable_v<signature<int()>>, "");
+
 	// overloading and void-discarding
 	do_f1([](char const*) { return 3; });
 

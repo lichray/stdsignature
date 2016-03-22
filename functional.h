@@ -81,7 +81,7 @@ struct signature<R(Args...)>
 	    typename Rt = std::result_of_t<F(Args...)>,
 	    typename = enable_if_t<is_convertible_v<Rt, R> or is_void_v<R>>
 	>
-	signature(F&& f) :
+	signature(F&& f) noexcept :
 		cb_(callback<F, R>::fn),
 		f_(reinterpret_cast<intptr_t>(std::addressof(f)))
 	{}
