@@ -30,6 +30,9 @@
 #include <functional>
 #include <stdint.h>
 
+#define STDEX_BODY(...) \
+	noexcept(noexcept(__VA_ARGS__)) { return __VA_ARGS__; }
+
 namespace stdex
 {
 
@@ -44,9 +47,7 @@ struct _invoke
 {
 	template <typename... Args>
 	static decltype(auto) fn(F&& f, Args&&... args)
-	{
-		return std::forward<F>(f)(std::forward<Args>(args)...);
-	}
+	STDEX_BODY(std::forward<F>(f)(std::forward<Args>(args)...));
 };
 
 template <typename F>
@@ -54,18 +55,54 @@ struct _invoke<F, enable_if_t<is_member_pointer_v<std::decay_t<F>>>>
 {
 	template <typename... Args>
 	static decltype(auto) fn(F&& f, Args&&... args)
-	{
-		return std::mem_fn(f)(std::forward<Args>(args)...);
-	}
+	STDEX_BODY(std::mem_fn(f)(std::forward<Args>(args)...));
 };
 
 template <typename F, typename... Args>
 decltype(auto) invoke(F&& f, Args&&... args)
+STDEX_BODY(_invoke<F>::fn(std::forward<F>(f), std::forward<Args>(args)...));
+
+template <typename R, typename = void>
+struct _invoke_r
 {
-	return _invoke<F>::fn(std::forward<F>(f), std::forward<Args>(args)...);
-}
+	template <typename F, typename... Args>
+	static decltype(auto) fn(F&& f, Args&&... args)
+	STDEX_BODY(invoke(std::forward<F>(f), std::forward<Args>(args)...));
+};
+
+template <typename R>
+struct _invoke_r<R, enable_if_t<is_void_v<R>>>
+{
+	template <typename F, typename... Args>
+	static decltype(auto) fn(F&& f, Args&&... args)
+	STDEX_BODY((void)invoke(std::forward<F>(f),
+		    std::forward<Args>(args)...));
+};
+
+template
+<
+    typename R, typename F, typename... Args,
+    typename Rt = std::result_of_t<F(Args...)>,
+    typename = enable_if_t<is_convertible_v<Rt, R> or is_void_v<R>>
+>
+R invoke(F&& f, Args&&... args)
+STDEX_BODY(_invoke_r<R>::fn(std::forward<F>(f), std::forward<Args>(args)...));
 
 }
+
+template <typename, typename R = void, typename = void>
+struct is_callable : std::false_type {};
+
+template <typename F, typename... Args, typename R>
+struct is_callable
+<
+    F(Args...), R,
+    decltype(void(invoke<R>(std::declval<F>(), std::declval<Args>()...)))
+>
+: std::true_type {};
+
+template <typename T, typename R = void>
+constexpr bool is_callable_v = is_callable<T, R>::value;
 
 // from LLVM function_ref
 template<typename F> class signature;
@@ -78,11 +115,10 @@ struct signature<R(Args...)>
 	    typename F,
 	    typename Ft = std::remove_reference_t<F>,
 	    typename = enable_if_t<not is_same_v<Ft, signature>>,
-	    typename Rt = std::result_of_t<F(Args...)>,
-	    typename = enable_if_t<is_convertible_v<Rt, R> or is_void_v<R>>
+	    typename = enable_if_t<is_callable_v<F(Args...), R>>
 	>
 	signature(F&& f) noexcept :
-		cb_(callback<F, R>::fn),
+		cb_(callback_fn<F>),
 		f_(reinterpret_cast<intptr_t>(std::addressof(f)))
 	{}
 
@@ -98,26 +134,6 @@ struct signature<R(Args...)>
 	}
 
 private:
-	template <typename F, typename Rt, typename = void>
-	struct callback
-	{
-		static Rt fn(intptr_t f, Args... args)
-		{
-			return invoke(recover<F>(f),
-			    std::forward<Args>(args)...);
-		}
-	};
-
-	template <typename F, typename Rt>
-	struct callback<F, Rt, enable_if_t<is_void_v<Rt>>>
-	{
-		static Rt fn(intptr_t f, Args... args)
-		{
-			(void)invoke(recover<F>(f),
-			    std::forward<Args>(args)...);
-		}
-	};
-
 	template <typename F>
 	static F&& recover(intptr_t f) noexcept
 	{
@@ -125,10 +141,16 @@ private:
 		return std::forward<F>(*reinterpret_cast<Ft*>(f));
 	}
 
+	template <typename F>
+	static R callback_fn(intptr_t f, Args... args)
+	STDEX_BODY(invoke<R>(recover<F>(f), std::forward<Args>(args)...));
+
 	std::add_pointer_t<R(intptr_t, Args...)> cb_;
 	intptr_t f_;
 };
 
 }
+
+#undef STDEX_BODY
 
 #endif
