@@ -121,9 +121,9 @@ template <typename T, typename R = void>
 constexpr bool is_nothrow_callable_v = is_nothrow_callable<T, R>::value;
 
 // from LLVM function_ref
-template<typename F> class signature;
+template <typename F> struct signature;
 
-template<typename R, typename... Args>
+template <typename R, typename... Args>
 struct signature<R(Args...)>
 {
 	template
@@ -171,7 +171,7 @@ private:
 	intptr_t f_;
 };
 
-template<typename R, typename... Args>
+template <typename R, typename... Args>
 struct signature<R(Args...) FAKE_NOEXCEPT> : signature<R(Args...)>
 {
 	template

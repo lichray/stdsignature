@@ -67,9 +67,6 @@ auto do_f3(signature<char(F3)> f, F3 obj)
 	return f(obj);
 };
 
-void f4() noexcept
-{}
-
 #include <cassert>
 
 using namespace std::experimental;
@@ -98,7 +95,7 @@ int main()
 
 	// forwarding
 	F2 f2;
-	F2 const f2c;
+	F2 const f2c{};
 
 	assert(do_f2(f2) == no_qs);
 	assert(do_f2(f2c) == const_qs);
@@ -117,6 +114,7 @@ int main()
 	do_f1(std::cref(f1));
 
 	// noexcept in the type system
+	auto f4 = []() noexcept {};
 	signature<void() FAKE_NOEXCEPT> df4 = f4;
 	signature<void()> df4_2 = df4;
 
