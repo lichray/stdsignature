@@ -138,7 +138,11 @@ struct signature<R(Args...)>
 		f_(reinterpret_cast<intptr_t>(std::addressof(f)))
 	{}
 
-	template <typename F>
+	template
+	<
+	    typename F,
+	    typename = enable_if_t<is_callable_v<F(Args...), R>>
+	>
 	signature(std::reference_wrapper<F> f) noexcept :
 		signature(f.get())
 	{}

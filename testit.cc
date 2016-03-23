@@ -93,7 +93,8 @@ int main()
 	    signature<int() FAKE_NOEXCEPT>>, "");
 
 	// overloading and void-discarding
-	do_f1([](char const*) { return 3; });
+	auto f1 = [](char const*) { return 3; };
+	do_f1(f1);
 
 	// forwarding
 	F2 f2;
@@ -113,6 +114,7 @@ int main()
 	// ref-unwrapping
 	signature<int()> xf = std::ref(f2);
 	assert(xf() == no_qs);
+	do_f1(std::cref(f1));
 
 	// noexcept in the type system
 	signature<void() FAKE_NOEXCEPT> df4 = f4;
