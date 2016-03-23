@@ -33,6 +33,9 @@
 #define STDEX_BODY(...) \
 	noexcept(noexcept(__VA_ARGS__)) { return __VA_ARGS__; }
 
+// simulate noexcept-in-type-system
+#define FAKE_NOEXCEPT volatile
+
 namespace stdex
 {
 
@@ -91,7 +94,10 @@ STDEX_BODY(_invoke_r<R>::fn(std::forward<F>(f), std::forward<Args>(args)...));
 }
 
 template <typename, typename R = void, typename = void>
-struct is_callable : std::false_type {};
+struct is_callable : std::false_type
+{
+	using nothrow = type;
+};
 
 template <typename F, typename... Args, typename R>
 struct is_callable
@@ -99,10 +105,20 @@ struct is_callable
     F(Args...), R,
     decltype(void(invoke<R>(std::declval<F>(), std::declval<Args>()...)))
 >
-: std::true_type {};
+: std::true_type
+{
+	using nothrow = std::integral_constant<bool,
+	    noexcept(invoke<R>(std::declval<F>(), std::declval<Args>()...))>;
+};
+
+template <typename T, typename R = void>
+struct is_nothrow_callable : is_callable<T, R>::nothrow {};
 
 template <typename T, typename R = void>
 constexpr bool is_callable_v = is_callable<T, R>::value;
+
+template <typename T, typename R = void>
+constexpr bool is_nothrow_callable_v = is_nothrow_callable<T, R>::value;
 
 // from LLVM function_ref
 template<typename F> class signature;
@@ -114,7 +130,7 @@ struct signature<R(Args...)>
 	<
 	    typename F,
 	    typename Ft = std::remove_reference_t<F>,
-	    typename = enable_if_t<not is_same_v<Ft, signature>>,
+	    typename = enable_if_t<not is_base_of_v<signature, Ft>>,
 	    typename = enable_if_t<is_callable_v<F(Args...), R>>
 	>
 	signature(F&& f) noexcept :
@@ -145,8 +161,33 @@ private:
 	static R callback_fn(intptr_t f, Args... args)
 	STDEX_BODY(invoke<R>(recover<F>(f), std::forward<Args>(args)...));
 
+	friend signature<R(Args...) FAKE_NOEXCEPT>;
+
 	std::add_pointer_t<R(intptr_t, Args...)> cb_;
 	intptr_t f_;
+};
+
+template<typename R, typename... Args>
+struct signature<R(Args...) FAKE_NOEXCEPT> : signature<R(Args...)>
+{
+	template
+	<
+	    typename F,
+	    typename Ft = std::remove_reference_t<F>,
+	    typename = enable_if_t<not is_base_of_v<signature, Ft>>,
+	    typename = enable_if_t<is_nothrow_callable_v<F(Args...), R>>
+	>
+	signature(F&& f) noexcept :
+		signature<R(Args...)>(std::forward<F>(f))
+	{}
+
+	R operator()(Args... args) noexcept
+	{
+		static_assert(
+		    noexcept(cb_(this->f_, std::forward<Args>(args)...)),
+		    "epic fail");
+		return cb_(this->f_, std::forward<Args>(args)...);
+	}
 };
 
 }

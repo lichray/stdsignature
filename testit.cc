@@ -67,6 +67,9 @@ auto do_f3(signature<char(F3)> f, F3 obj)
 	return f(obj);
 };
 
+void f4() noexcept
+{}
+
 #include <cassert>
 
 using namespace std::experimental;
@@ -79,6 +82,15 @@ int main()
 
 	static_assert(is_nothrow_constructible_v<signature<int()>,
 	    std::reference_wrapper<F2>>, "");
+
+	static_assert(is_convertible_v<signature<int() FAKE_NOEXCEPT>,
+	    signature<int()>>, "");
+	static_assert(sizeof(signature<int() FAKE_NOEXCEPT>) ==
+	    sizeof(signature<int()>), "");
+	static_assert(not is_convertible_v<signature<int()>,
+	    signature<int() FAKE_NOEXCEPT>>, "");
+	static_assert(is_base_of_v<signature<int()>,
+	    signature<int() FAKE_NOEXCEPT>>, "");
 
 	// overloading and void-discarding
 	do_f1([](char const*) { return 3; });
@@ -101,4 +113,11 @@ int main()
 	// ref-unwrapping
 	signature<int()> xf = std::ref(f2);
 	assert(xf() == no_qs);
+
+	// noexcept in the type system
+	signature<void() FAKE_NOEXCEPT> df4 = f4;
+	signature<void()> df4_2 = df4;
+
+	static_assert(noexcept(df4()), "");
+	static_assert(not noexcept(df4_2()), "");
 }
