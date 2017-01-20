@@ -26,7 +26,11 @@
 #ifndef _STDEX_FUNCTIONAL_H
 #define _STDEX_FUNCTIONAL_H
 
+#if defined(_MSC_VER)
+#include <type_traits>
+#else
 #include <experimental/type_traits>
+#endif
 #include <functional>
 #include <stdint.h>
 
@@ -39,7 +43,18 @@
 namespace stdex
 {
 
-using namespace std::experimental;
+#if defined(_MSC_VER)
+using std::is_member_pointer_v;
+using std::is_void_v;
+using std::is_convertible_v;
+using std::is_base_of_v;
+#else
+using std::experimental::is_member_pointer_v;
+using std::experimental::is_void_v;
+using std::experimental::is_convertible_v;
+using std::experimental::is_base_of_v;
+#endif
+
 using std::enable_if_t;
 
 namespace
@@ -96,7 +111,7 @@ STDEX_BODY(_invoke_r<R>::fn(std::forward<F>(f), std::forward<Args>(args)...));
 template <typename, typename R = void, typename = void>
 struct is_callable : std::false_type
 {
-	using nothrow = type;
+	static constexpr bool nothrow = false;
 };
 
 template <typename F, typename... Args, typename R>
@@ -107,18 +122,20 @@ struct is_callable
 >
 : std::true_type
 {
-	using nothrow = std::integral_constant<bool,
-	    noexcept(invoke<R>(std::declval<F>(), std::declval<Args>()...))>;
+	static constexpr bool nothrow =
+	    noexcept(invoke<R>(std::declval<F>(), std::declval<Args>()...));
 };
-
-template <typename T, typename R = void>
-struct is_nothrow_callable : is_callable<T, R>::nothrow {};
 
 template <typename T, typename R = void>
 constexpr bool is_callable_v = is_callable<T, R>::value;
 
 template <typename T, typename R = void>
-constexpr bool is_nothrow_callable_v = is_nothrow_callable<T, R>::value;
+constexpr bool is_nothrow_callable_v = is_callable<T, R>::nothrow;
+
+template <typename T, typename R = void>
+struct is_nothrow_callable :
+	std::integral_constant<bool, is_nothrow_callable_v<T, R>>
+{};
 
 // from LLVM function_ref
 template <typename F> struct signature;
