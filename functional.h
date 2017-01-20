@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Zhihao Yuan.  All rights reserved.
+ * Copyright (c) 2016, 2017 Zhihao Yuan.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -100,7 +100,7 @@ struct _invoke_r<R, enable_if_t<is_void_v<R>>>
 template
 <
     typename R, typename F, typename... Args,
-    typename Rt = std::result_of_t<F(Args...)>,
+    typename Rt = std::result_of_t<F&&(Args&&...)>,
     typename = enable_if_t<is_convertible_v<Rt, R> or is_void_v<R>>
 >
 R invoke(F&& f, Args&&... args)
