@@ -69,7 +69,11 @@ auto do_f3(signature<char(F3)> f, F3 obj)
 
 #include <cassert>
 
+#if defined(_MSC_VER)
+using namespace std;
+#else
 using namespace std::experimental;
+#endif
 
 int main()
 {
@@ -84,7 +88,7 @@ int main()
 	    signature<int()>>, "");
 	static_assert(sizeof(signature<int() FAKE_NOEXCEPT>) ==
 	    sizeof(signature<int()>), "");
-	static_assert(not is_convertible_v<signature<int()>,
+	static_assert(!is_convertible_v<signature<int()>,
 	    signature<int() FAKE_NOEXCEPT>>, "");
 	static_assert(is_base_of_v<signature<int()>,
 	    signature<int() FAKE_NOEXCEPT>>, "");
@@ -119,5 +123,5 @@ int main()
 	signature<void()> df4_2 = df4;
 
 	static_assert(noexcept(df4()), "");
-	static_assert(not noexcept(df4_2()), "");
+	static_assert(!noexcept(df4_2()), "");
 }

@@ -57,9 +57,6 @@ using std::experimental::is_base_of_v;
 
 using std::enable_if_t;
 
-namespace
-{
-
 template <typename F, typename = void>
 struct _invoke
 {
@@ -85,7 +82,8 @@ struct _invoke_r
 {
 	template <typename F, typename... Args>
 	static decltype(auto) fn(F&& f, Args&&... args)
-	STDEX_BODY(invoke(std::forward<F>(f), std::forward<Args>(args)...));
+	STDEX_BODY(stdex::invoke(std::forward<F>(f),
+	                         std::forward<Args>(args)...));
 };
 
 template <typename R>
@@ -93,20 +91,18 @@ struct _invoke_r<R, enable_if_t<is_void_v<R>>>
 {
 	template <typename F, typename... Args>
 	static decltype(auto) fn(F&& f, Args&&... args)
-	STDEX_BODY((void)invoke(std::forward<F>(f),
-		    std::forward<Args>(args)...));
+	STDEX_BODY((void)stdex::invoke(std::forward<F>(f),
+	                               std::forward<Args>(args)...));
 };
 
 template
 <
     typename R, typename F, typename... Args,
     typename Rt = std::result_of_t<F&&(Args&&...)>,
-    typename = enable_if_t<is_convertible_v<Rt, R> or is_void_v<R>>
+    typename = enable_if_t<is_convertible_v<Rt, R> || is_void_v<R>>
 >
 R invoke(F&& f, Args&&... args)
 STDEX_BODY(_invoke_r<R>::fn(std::forward<F>(f), std::forward<Args>(args)...));
-
-}
 
 template <typename, typename R = void, typename = void>
 struct is_callable : std::false_type
@@ -118,12 +114,13 @@ template <typename F, typename... Args, typename R>
 struct is_callable
 <
     F(Args...), R,
-    decltype(void(invoke<R>(std::declval<F>(), std::declval<Args>()...)))
+    decltype(void(stdex::invoke<R>(std::declval<F>(),
+                                   std::declval<Args>()...)))
 >
 : std::true_type
 {
-	static constexpr bool nothrow =
-	    noexcept(invoke<R>(std::declval<F>(), std::declval<Args>()...));
+	static constexpr bool nothrow = noexcept(
+	    stdex::invoke<R>(std::declval<F>(), std::declval<Args>()...));
 };
 
 template <typename T, typename R = void>
@@ -147,7 +144,7 @@ struct signature<R(Args...)>
 	<
 	    typename F,
 	    typename Ft = std::remove_reference_t<F>,
-	    typename = enable_if_t<not is_base_of_v<signature, Ft>>,
+	    typename = enable_if_t<!is_base_of_v<signature, Ft>>,
 	    typename = enable_if_t<is_callable_v<F(Args...), R>>
 	>
 	signature(F&& f) noexcept :
@@ -180,7 +177,8 @@ private:
 
 	template <typename F>
 	static R callback_fn(intptr_t f, Args... args)
-	STDEX_BODY(invoke<R>(recover<F>(f), std::forward<Args>(args)...));
+	STDEX_BODY(stdex::invoke<R>(recover<F>(f),
+	                            std::forward<Args>(args)...));
 
 	friend signature<R(Args...) FAKE_NOEXCEPT>;
 
@@ -195,7 +193,7 @@ struct signature<R(Args...) FAKE_NOEXCEPT> : signature<R(Args...)>
 	<
 	    typename F,
 	    typename Ft = std::remove_reference_t<F>,
-	    typename = enable_if_t<not is_base_of_v<signature, Ft>>,
+	    typename = enable_if_t<!is_base_of_v<signature, Ft>>,
 	    typename = enable_if_t<is_nothrow_callable_v<F(Args...), R>>
 	>
 	signature(F&& f) noexcept :
